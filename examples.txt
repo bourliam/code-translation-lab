@@ -1,0 +1,212 @@
+The SAS code to translate:
+proc sql;
+
+create table ventes_mms as
+select a.*, b.formule as formule_, b.date_naissance as date_na, b.code_postal
+from
+(
+select * from  _132_amm.poca_ventes
+where cd_si_srce in ('ams','afa') and marque='macif'
+) a
+left join pf_amm_sante_ b
+on trim(a.no_cont)=trim(b.num_ctr_indiv)
+and b.si_srce=a.cd_si_srce
+;
+
+quit;
+
+
+The SAS code to translate:
+proc sql;
+create table path.users_FRANCE as
+select distinct a.*, b.name as nom, substr(b.city, 1, 6) as Adresse, b.Date_Naissance as dt_naiss, b.origin, count(b.id) as num, &flow., (sum(b.'grades'n)) as gpa
+from 
+(
+  select * from root.students_&year.
+  where age = 15 and input(no_soc, 30.) > 10 and age < input(&maxAge., 30.) and city in ('MTP', 'PARIS') and origin IN ('1', '2', '44') and datepart(birthday) > %Bquote(2023-01-16 /*&bground.*/)
+  and datepart(birthday) < date_add('&dt_Max', 1)
+) z
+left join schools a
+on trim(a.id) = trim(b.school_id)
+and b.no_etu=a.cd_no_etu
+and b.no_perim > a.num_perim
+group by city;
+quit;
+
+
+The SAS code to translate:
+data BCS.users;
+set _44_OP.students;
+by age state spec;
+if last.age;
+format school $CHAR15.;
+if city in ("MTP", "PARIS") then status = "Cool";
+else status="uncool";
+where status^="uncool" and age^=. and talent=.;
+
+Rank=status;
+rename &maxAge.=limite_age;
+mois_student = month(datepart(birthday));
+annee = year(datepart(birthday));
+Form_date = datepart(birthday);
+If Form_date < birthday and Form_date > &end. then delete;
+if age > 15 then do;
+  status = 'Lyceen';
+  taille = 'Grand';
+end;
+if age <= 15 then do;
+  status = 'Collegien';
+end;
+drop status city;
+by age descending id;
+run;
+
+
+The SAS code to translate:
+data users;
+set students1-students3;
+run;
+
+
+The SAS code to translate:
+data users;
+set students;
+run;
+
+
+The SAS code to translate:
+proc sort data=students out=users nodupkey ;
+by city;
+run;
+
+
+The SAS code to translate:
+%let city_list=MTP+Paris+Nantes+Marseille;
+%let ville=%scan(&city_list.,4,"+");
+proc sql;
+
+create table users as
+select age, id, &ville.
+from students_&annee.
+where age > 15;
+
+quit;
+
+
+The SAS code to translate:
+%let type_list=Uniforme+Civil+Robe+Salopette;
+%let type_uni=%scan(&type_list.,2,+);
+data users;
+set students;
+where type = &type_uni.;
+
+
+
+The SAS code to translate:
+proc summary data=students nway missing;
+class age city birthday;
+var grade;
+output out=users (drop=_f: _type_) sum=;
+run;
+
+
+The SAS code to translate:
+DATA BASE_SAS.&table. ;
+	infile fich
+		delimiter=";" 
+        ENCODING="WLATIN1"
+		Dsd
+		 missover
+		  firstobs=2;
+    LENGTH
+        CD_CENT             8
+        MT_9_TAXE          8 ;
+    FORMAT
+        CD_CENT           BEST2.
+        MT_9_TAXE        BEST4. ;
+    INFORMAT
+       CD_CENT          BEST2.
+        MT_9_TAXE        BEST4. ;
+   
+    INPUT
+        CD_CENT          : ?? BEST2.
+        MT_9_TAXE        : ?? COMMAX4. ;
+;
+RUN;
+
+
+The SAS code to translate:
+data students users;
+
+merge t.schools (in=sc)
+p.cities (in=ct)
+t.exams (in=e);
+
+by id num_etu vitrix;
+
+if sc and not ct then output students;
+if ct and not sc and not e output users;
+run;
+
+
+
+The SAS code to translate:
+
+data tram.students plan.users ;
+	set schools;
+	region = ville;
+	age=compress(age,"");
+	address=compress(city||postcode,"");
+	if initial='Z' then
+		output tram.students;
+	else output plan.users;
+run;
+
+
+
+The SAS code to translate:
+proc sql;
+
+create table bases_sas.users as
+select t1.id,
+t1.'name'n,
+
+(sum(t1.grades))  as gpa,
+(sum(t1.notes))  as notes
+from students t1
+group by t1.age,
+t1.class;
+
+quit;
+
+The SAS code to translate:
+
+proc sql;
+create table &math_degroot._&anne.&mois. as 
+select 
+(sum(t1.'grade'n)) as math_grade
+from work.student_grades t1
+where t1.'degroot'n in ('a','z','c');
+create table &french_flavio._&anne.&mois. as
+select
+(sum(t1.'grade'n)) as french_grade
+from work.student_grades t1
+where t1.'flavio'n not in ('JS','9Z','R0') and t1.'degroot'n not in ('a','z','c');
+quit;
+
+
+The SAS code to translate:
+
+Proc transpose data=cities_&ANNEE.&MOIS. out=cities_transpose_&ANNEE.&MOIS. ;
+run;
+
+
+The SAS code to translate:
+
+data BASE_SAS.countries_&anne.&mois.;
+retain NATURE SOURCE _NAME_ pib;
+set cities_transpose_&ANNEE.&MOIS.;
+pib=sum(COL1,COL2,COL3,COL4,COL5);
+rename _NAME_= capital;
+run;
+
