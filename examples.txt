@@ -1,3 +1,5 @@
+Here are some examples:
+
 The SAS code to translate:
 proc sql;
 
@@ -15,6 +17,45 @@ and b.si_srce=a.cd_si_srce
 
 quit;
 
+The translation:
+[
+    {{
+        "type": "filter",
+        "params": {{
+            "input_dataset": "poca_ventes",
+            "output_dataset": "poca_ventes_a",
+            "expression": "arrayContains(['ams', 'afa'], cd_si_srce.toLowercase()) && marque.toLowercase() == 'macif'"
+        }}
+    }},
+    {{
+        "type": "join",
+        "params": {{
+            "input_dataset_left": "poca_ventes_a",
+            "input_dataset_right": "pf_amm_sante_",
+            "output_dataset": "ventes_mms",
+            "join_type": "LEFT",
+            "left_join_keys": [
+                "no_cont",
+                "cd_si_srce"
+            ],
+            "right_join_keys": [
+                "num_ctr_indiv",
+                "si_srce"
+            ],
+            "operators": [
+                "=",
+                "="
+            ],
+            "main_dataset_columns_to_select": [],
+            "main_dataset_columns_to_select_alias": {{}},
+            "dataset_to_join_columns_to_select": ["formule", "date_naissance", "code_postal"],
+            "dataset_to_join_columns_to_select_alias" : {{
+              "formule": "formule_",
+              "date_naissance": "date_na"
+            }}
+        }}
+    }}
+]
 
 The SAS code to translate:
 proc sql;
@@ -33,6 +74,103 @@ and b.no_perim > a.num_perim
 group by city;
 quit;
 
+The translation:
+[
+  {{
+    "type": "filter",
+    "params": {{
+      "input_dataset": "students_&year.",
+      "output_dataset": "students_&year._z",
+      "expression": "age == 15 && toNumber(no_soc) > 10 && age < toNumber(variables['maxAge']) && arrayContains(['mtp', 'paris'], city.toLowercase()) && arrayContains([1, 2, 44], origin) && asDate(birthday, 'yyyy-MM-dd HH:mm:ss') > asDate('2023-01-16', 'yyyy-MM-dd') && asDate(birthday, 'yyyy-MM-dd HH:mm:ss') < inc(asDate(variables['dt_Max'], 'yyyy-MM-dd'), 1, 'day')"
+    }}
+  }},
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "students_&year._z",
+      "output_dataset": "students_&year._z",
+      "expression": "substring(city, 0, 6)",
+      "column_name": "adresse"
+    }}
+  }},
+  {{
+    "type": "join",
+    "params": {{
+        "input_dataset_left": "students_&year._z",
+        "input_dataset_right": "schools",
+        "output_dataset": "users_france",
+        "join_type": "LEFT",
+        "left_join_keys": [
+            "school_id",
+            "cd_no_etu",
+            "no_perim"
+        ],
+        "right_join_keys": [
+            "id",
+            "num_etu",
+            "num_perim"
+        ],
+        "operators": [
+          "=",
+          "=",
+          ">"
+        ],
+        "main_dataset_columns_to_select": [],
+            "main_dataset_columns_to_select_alias": {{}},
+            "dataset_to_join_columns_to_select": ["name", "adresse", "date_naissance", "origin", "&flow."],
+            "dataset_to_join_columns_to_select_alias" : {{
+              "name": "nom",
+              "date_naissance": "dt_naiss"
+            }}
+    }}
+  }},
+  {{
+    "type": "grouping",
+    "params": {{
+      "input_dataset": "users_france",
+      "output_dataset": "users_france",
+      "grouping_keys": [
+        "city"
+      ],
+      "aggregations": {{
+        "id": ["count"],
+        "grades": ["sum"]
+      }}
+    }}
+  }},
+  {{
+    "type": "rename_columns",
+    "params": {{
+      "input_dataset": "users_france",
+      "output_dataset": "users_france",
+      "renamings": [
+          {{
+              "from": "id_count",
+              "to": "num"
+          }},
+          {{
+              "from": "grades_sum",
+              "to": "gpa"
+          }}
+      ]
+    }}
+  }},
+  {{
+    "type": "distinct",
+    "params": {{
+      "input_dataset": "users_france",
+      "output_dataset": "users_france",
+      "subset": [
+        "nom",
+        "adresse",
+        "dt_naiss",
+        "origin",
+        "num",
+        "&flow."
+      ]
+    }}
+  }}
+]
 
 The SAS code to translate:
 data BCS.users;
@@ -61,23 +199,248 @@ drop status city;
 by age descending id;
 run;
 
+The translation:
+[
+  {{
+    "type": "window",
+    "params": {{
+      "input_dataset": "students",
+      "output_dataset": "users",
+      "partitioning_columns": [
+          "age",
+          "state",
+          "spec"
+      ],
+      "orders": [
+        {{
+            "column": "age",
+            "desc": false
+        }}
+      ],
+      "column_aggregations_mapping": {{
+        "age": [
+          "last"
+        ]
+      }},
+      "ranks": []
+      }}
+    }},
+    {{
+      "type": "filter",
+      "params": {{
+        "input_dataset": "users",
+        "output_dataset": "users",
+        "expression": "age == age_last"
+      }}
+  }},
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "expression": "if(arrayContains(['mtp', 'paris'], city.toLowercase()), 'Cool', 'uncool')",
+      "column_name": "status"
+    }}
+  }},
+  {{
+      "type": "filter",
+      "params": {{
+        "input_dataset": "users",
+        "output_dataset": "users",
+        "expression": "status.toLowercase() != 'uncool' && !isNull(age) && isNull(talent)"
+      }}
+  }},
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "expression": "status",
+      "column_name": "rank"
+    }}
+  }},
+  {{
+    "type": "rename_columns",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "renamings": [
+          {{
+              "from": "&maxAge.",
+              "to": "limite_age"
+          }}
+      ]
+    }}
+  }}
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "expression": "datePart(asDate(birthday, 'yyyy-MM-dd HH:mm:ss'), 'month')",
+      "column_name": "mois_student"
+    }}
+  }},
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "expression": "datePart(asDate(birthday, 'yyyy-MM-dd HH:mm:ss'), 'year')",
+      "column_name": "annee"
+    }}
+  }},
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "expression": "asDate(birthday, 'yyyy-MM-dd HH:mm:ss')",
+      "column_name": "form_date"
+    }}
+  }},
+  {{
+      "type": "filter",
+      "params": {{
+        "input_dataset": "users",
+        "output_dataset": "users",
+        "expression": "asDate(form_date) >= asDate(birthday) || asDate(form_date) <= asDate(variables['end'], 'yyyy-MM-dd')"
+      }}
+  }},
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "expression": "if(age > 15, 'lyceen', status)",
+      "column_name": "status"
+    }}
+  }},
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "expression": "if(age > 15, 'grand', taille)",
+      "column_name": "taille"
+    }}
+  }},
+  {{
+    "type": "column_with_formula",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "expression": "if(age <= 15, 'collegien', status)",
+      "column_name": "status"
+    }}
+  }},
+  {{
+    "type": "select_columns",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "columns": [
+          "status",
+          "city"
+      ],
+      "mode": "Drop"
+    }}
+  }},
+  {{
+    "type": "sort",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "orders": [
+        {{
+          "column": "age",
+          "order": "ASCENDING"
+        }},
+        {{
+          "column": "id",
+          "order": "DESCENDING"
+        }}
+      ]
+    }}
+  }}
+]
 
 The SAS code to translate:
 data users;
 set students1-students3;
 run;
 
+The translation:
+[
+    {{
+        "type": "stack",
+        "params": {{
+            "input_datasets": [
+                "students1",
+                "students2",
+                "students3"
+            ],
+            "output_dataset": "users",
+            "mode": "UNION"
+        }}
+    }}
+]
 
 The SAS code to translate:
 data users;
 set students;
 run;
 
+The translation:
+[]
 
 The SAS code to translate:
 proc sort data=students out=users nodupkey ;
 by city;
 run;
+
+The translation:
+[
+    {{
+        "type": "window",
+        "params": {{
+            "input_dataset": "students",
+            "output_dataset": "users",
+            "partitioning_columns": [
+                "city"
+            ],
+            "orders": [
+                {{
+                    "column": "city",
+                    "desc": false
+                }}
+            ],
+            "column_aggregations_mapping": {{}},
+            "ranks": [
+                "rowNumber"
+            ]
+        }}
+    }},
+    {{
+        "type": "filter",
+        "params": {{
+            "input_dataset": "users",
+            "output_dataset": "users",
+            "expression": "rownumber == 1"
+        }}
+    }},
+    {{
+        "type": "select_columns",
+        "params": {{
+            "input_dataset": "users",
+            "output_dataset": "users",
+            "columns": [
+                "rownumber"
+            ],
+            "mode": "Drop"
+        }}
+    }}
+]
 
 
 The SAS code to translate:
@@ -92,6 +455,30 @@ where age > 15;
 
 quit;
 
+The translation:
+[
+  {{
+    "type": "filter",
+    "params": {{
+      "input_dataset": "students_&annee.",
+      "output_dataset": "users",
+      "expression": "age > 15"
+    }}
+  }},
+  {{
+    "type": "select_columns",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "columns": [
+        "age",
+        "id",
+        "marseille"
+      ],
+      "mode": "Keep"
+    }}
+  }}
+]
 
 The SAS code to translate:
 %let type_list=Uniforme+Civil+Robe+Salopette;
@@ -100,7 +487,17 @@ data users;
 set students;
 where type = &type_uni.;
 
-
+The translation:
+[
+  {{
+    "type": "filter",
+    "params": {{
+      "input_dataset": "students",
+      "output_dataset": "users",
+      "expression": "type.toLowercase() == 'civil'"
+    }}
+  }}
+]
 
 The SAS code to translate:
 proc summary data=students nway missing;
@@ -109,6 +506,24 @@ var grade;
 output out=users (drop=_f: _type_) sum=;
 run;
 
+The translation:
+[
+  {{
+    "type": "grouping",
+    "params": {{
+      "input_dataset": "students",
+      "output_dataset": "users",
+      "grouping_keys": [
+        "age",
+        "city",
+        "birthday"
+      ],
+      "aggregations": {{
+        "grade": ["sum"]
+      }}
+    }}
+  }}
+]
 
 The SAS code to translate:
 DATA BASE_SAS.&table. ;
@@ -134,6 +549,8 @@ DATA BASE_SAS.&table. ;
 ;
 RUN;
 
+The translation:
+[]
 
 The SAS code to translate:
 data students users;
@@ -148,10 +565,95 @@ if sc and not ct then output students;
 if ct and not sc and not e output users;
 run;
 
-
+The translation:
+[
+    {{
+        "type": "join",
+        "params": {{
+            "input_dataset_left": "schools",
+            "input_dataset_right": "cities",
+            "output_dataset": "students",
+            "join_type": "LEFT_ANTI",
+            "left_join_keys": [
+                "id",
+                "num_etu",
+                "vitrix"
+            ],
+            "right_join_keys": [
+                "id",
+                "num_etu",
+                "vitrix"
+            ],
+            "operators": [
+                "=",
+                "=",
+                "="
+            ],
+            "main_dataset_columns_to_select": [],
+            "main_dataset_columns_to_select_alias": {{}},
+            "dataset_to_join_columns_to_select": [],
+            "dataset_to_join_columns_to_select_alias" : {{}}
+        }}
+    }},
+    {{
+        "type": "join",
+        "params": {{
+            "input_dataset_left": "cities",
+            "input_dataset_right": "schools",
+            "output_dataset": "users",
+            "join_type": "LEFT_ANTI",
+            "left_join_keys": [
+                "id",
+                "num_etu",
+                "vitrix"
+            ],
+            "right_join_keys": [
+                "id",
+                "num_etu",
+                "vitrix"
+            ],
+            "operators": [
+                "=",
+                "=",
+                "="
+            ],
+            "main_dataset_columns_to_select": [],
+            "main_dataset_columns_to_select_alias": {{}},
+            "dataset_to_join_columns_to_select": [],
+            "dataset_to_join_columns_to_select_alias" : {{}}
+        }}
+    }},
+    {{
+        "type": "join",
+        "params": {{
+            "input_dataset_left": "users",
+            "input_dataset_right": "exams",
+            "output_dataset": "users",
+            "join_type": "LEFT_ANTI",
+            "left_join_keys": [
+                "id",
+                "num_etu",
+                "vitrix"
+            ],
+            "right_join_keys": [
+                "id",
+                "num_etu",
+                "vitrix"
+            ],
+            "operators": [
+                "=",
+                "=",
+                "="
+            ],
+            "main_dataset_columns_to_select": [],
+            "main_dataset_columns_to_select_alias": {{}},
+            "dataset_to_join_columns_to_select": [],
+            "dataset_to_join_columns_to_select_alias" : {{}}
+        }}
+    }}
+]
 
 The SAS code to translate:
-
 data tram.students plan.users ;
 	set schools;
 	region = ville;
@@ -162,7 +664,52 @@ data tram.students plan.users ;
 	else output plan.users;
 run;
 
-
+The translation:
+[
+    {{
+        "type": "column_with_formula",
+        "params": {{
+            "input_dataset": "schools",
+            "output_dataset": "users",
+            "expression": "ville",
+            "column_name": "region"
+        }}
+    }},
+    {{
+        "type": "column_with_formula",
+        "params": {{
+            "input_dataset": "users",
+            "output_dataset": "users",
+            "expression": "replace(age, ' ', '')",
+            "column_name": "age"
+        }}
+    }},
+    {{
+        "type": "column_with_formula",
+        "params": {{
+            "input_dataset": "users",
+            "output_dataset": "users",
+            "expression": "replace(city+postcode, ' ', '')",
+            "column_name": "address"
+        }}
+    }},
+    {{
+        "type": "filter",
+        "params": {{
+            "input_dataset": "users",
+            "output_dataset": "students",
+            "expression": "initial.toLowercase() == 'z'"
+        }}
+    }},
+    {{
+        "type": "filter",
+        "params": {{
+            "input_dataset": "users",
+            "output_dataset": "users",
+            "expression": "initial.toLowercase() != 'z'"
+        }}
+    }}
+]
 
 The SAS code to translate:
 proc sql;
@@ -179,6 +726,60 @@ t1.class;
 
 quit;
 
+The translation:
+[
+    {{
+        "type": "grouping",
+        "params": {{
+            "input_dataset": "students",
+            "output_dataset": "users",
+            "grouping_keys": [
+                "age",
+                "class"
+            ],
+            "aggregations": {{
+                "grades": [
+                    "sum"
+                ],
+                "notes": [
+                    "sum"
+                ]
+            }}
+        }}
+    }},
+    {{
+        "type": "rename_columns",
+        "params": {{
+            "input_dataset": "users",
+            "output_dataset": "users",
+            "renamings": [
+                {{
+                    "from": "grades_sum",
+                    "to": "gpa"
+                }},
+                {{
+                    "from": "notes_sum",
+                    "to": "notes"
+                }}
+            ]
+        }}
+    }},
+    {{
+    "type": "select_columns",
+    "params": {{
+      "input_dataset": "users",
+      "output_dataset": "users",
+      "columns": [
+          "id",
+          "name",
+          "gpa",
+          "notes"
+      ],
+      "mode": "Keep"
+    }}
+  }}
+]
+
 The SAS code to translate:
 
 proc sql;
@@ -194,12 +795,128 @@ from work.student_grades t1
 where t1.'flavio'n not in ('JS','9Z','R0') and t1.'degroot'n not in ('a','z','c');
 quit;
 
+The translation:
+[
+    {{
+        "type": "filter",
+        "params": {{
+            "input_dataset": "student_grades",
+            "output_dataset": "&math_degroot._&anne.&mois.",
+            "expression": "arrayContains(['a','z','c'], degroot.toLowercase())"
+        }}
+    }},
+    {{
+        "type": "grouping",
+        "params": {{
+            "input_dataset": "&math_degroot._&anne.&mois.",
+            "output_dataset": "&math_degroot._&anne.&mois.",
+            "grouping_keys": [],
+            "aggregations": {{
+                "grade": [
+                    "sum"
+                ]
+            }}
+        }}
+    }},
+    {{
+        "type": "rename_columns",
+        "params": {{
+          "input_dataset": "&math_degroot._&anne.&mois.",
+          "output_dataset": "&math_degroot._&anne.&mois.",
+          "renamings": [
+              {{
+                  "from": "grade_sum",
+                  "to": "math_grade"
+              }}
+          ]
+        }}
+    }},
+    {{
+        "type": "filter",
+        "params": {{
+            "input_dataset": "student_grades",
+            "output_dataset": "&french_flavio._&anne.&mois.",
+            "expression": "!arrayContains(['js','9z','R0'], flavio.toLowercase()) && !arrayContains(['a','z','c'], degroot.toLowercase())"
+        }}
+    }},
+    {{
+        "type": "grouping",
+        "params": {{
+            "input_dataset": "&french_flavio._&anne.&mois.",
+            "output_dataset": "&french_flavio._&anne.&mois.",
+            "grouping_keys": [],
+            "aggregations": {{
+                "grade": [
+                    "sum"
+                ]
+            }}
+        }}
+    }},
+    {{
+        "type": "rename_columns",
+        "params": {{
+          "input_dataset": "&french_flavio._&anne.&mois.",
+          "output_dataset": "&french_flavio._&anne.&mois.",
+          "renamings": [
+              {{
+                  "from": "grade_sum",
+                  "to": "french_grade"
+              }}
+          ]
+        }}
+    }}
+]
 
 The SAS code to translate:
 
 Proc transpose data=cities_&ANNEE.&MOIS. out=cities_transpose_&ANNEE.&MOIS. ;
 run;
 
+The translation:
+
+[
+    {{
+        "type": "window",
+        "params": {{
+            "input_dataset": "cities_&ANNEE.&MOIS.",
+            "output_dataset": "cities_transpose_&ANNEE.&MOIS.",
+            "partitioning_columns": [],
+            "orders": [],
+            "column_aggregations_mapping": {{}},
+            "ranks": [
+                "rowNumber"
+            ]
+        }}
+    }},
+    {{
+        "type": "column_with_formula",
+        "params": {{
+            "input_dataset": "cities_transpose_&ANNEE.&MOIS.",
+            "output_dataset": "cities_transpose_&ANNEE.&MOIS.",
+            "expression": "'col'+rownumber",
+            "column_name": "_name_"
+        }}
+    }},
+    {{
+        "type": "select_columns",
+        "params": {{
+            "input_dataset": "cities_transpose_&ANNEE.&MOIS.",
+            "output_dataset": "cities_transpose_&ANNEE.&MOIS.",
+            "columns": [
+                "rownumber"
+            ],
+            "mode": "Drop"
+        }}
+    }},
+    {{
+        "type": "transpose",
+        "params": {{
+            "input_dataset": "cities_transpose_&ANNEE.&MOIS.",
+            "output_dataset": "cities_transpose_&ANNEE.&MOIS.",
+            "pivot_column": "_NAME_"
+        }}
+    }}
+]
 
 The SAS code to translate:
 
@@ -210,3 +927,28 @@ pib=sum(COL1,COL2,COL3,COL4,COL5);
 rename _NAME_= capital;
 run;
 
+The translation:
+[
+    {{
+        "type": "column_with_formula",
+        "params": {{
+            "input_dataset": "cities_transpose_&ANNEE.&MOIS.",
+            "output_dataset": "countries_&anne.&mois.",
+            "expression": "col1 + col2 + col3 + col4 + col5",
+            "column_name": "pib"
+        }}
+    }},
+    {{
+        "type": "rename_columns",
+        "params": {{
+          "input_dataset": "countries_&anne.&mois.",
+          "output_dataset": "countries_&anne.&mois.",
+          "renamings": [
+              {{
+                  "from": "_name_",
+                  "to": "capital"
+              }}
+          ]
+        }}
+    }}
+]
